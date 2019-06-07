@@ -1,35 +1,90 @@
+#!/usr/bin/python
+
+import argparse
 import zipfile
+import os
+import sys
+from time import time
+
+VERSION = '1.0'
+AUTHOR = "Jerfi"
 
 
-count=1
+def _cli_opts():
+    '''
+    Parse command line options.
+    @returns the arguments
+    '''
+    mepath = unicode(os.path.abspath(sys.argv[0]))
+    mebase = '%s' % (os.path.basename(mepath))
+    description = '''Zip cracker.'''
+    desc = argparse.RawDescriptionHelpFormatter
+    parser = argparse.ArgumentParser(prog=mebase,
+                                     description=description,
+                                     formatter_class=desc,
+                                     )
 
-zip_filename = raw_input("zip path: ")
-dictionary = raw_input("wordlist path: ")
+    parser.add_argument('-f', '--file',
+                        action='store',
+                        help='zip file',
+                        required=True)
+    parser.add_argument('-w', '--word_list',
+                        action='store',
+                        help='word_list file',
+                        required=True)
+    parser.add_argument('-V', '--version',
+                        action='version',
+                        version='%(prog)s v' + VERSION + " by " + AUTHOR)
 
-def main():
-	password = None
-	zip_file = zipfile.ZipFile(zip_filename)
-	with open(dictionary, 'r') as f:
-		for line in f.readlines():
-			password = line.strip('\n')
-			try:
-				zip_file.extractall(pwd=password)
+    args = parser.parse_args()
 
-				data = zf.namelist()[0]
+    return args
 
-				data_size = zf.getinfo(data).file_size
-				
-				print('''######\n[+] Password found! ~ %s\n ~%s\n ~%s\n######''' % (password.decode('utf8'), data, data_size))
-				    
-				break
 
-			except:
-				number = count
-			    	print('[%s] [-] Password failed! - %s' % (number,password.decode('utf8')))
-			    	count += 1
-				pass
-	
+def main(args):
+
+    try:
+        zip_ = zipfile.ZipFile(args.file)
+    except zipfile.BadZipfile:
+        print "Please check the file's path. It doesn't seem to be a zip file."
+        sys.exit(1)
+
+    password = None
+    i = 0
+    c_t = time()
+
+    try:
+        max_lines = sum(1 for line in open(args.word_list, 'r'))
+    except Exception:
+        print "Error: wordlist not found!"
+        sys.exit(1)
+    with open(args.word_list, "r") as f:
+        passes = f.readlines()
+        for x in passes:
+            i += 1
+            password = x.split("\n")[0]
+            try:
+                zip_.extractall(pwd=password)
+                t_t = time() - c_t
+                print "\n\nPassword cracked: %s\n" % password
+                print "Took %f seconds to crack the password. That is, "\
+                      "%i attempts per second." % (t_t, i / t_t)
+                sys.exit(1)
+            except Exception:
+                pass
+            output = "%*d / %d | %6.2f%% -> %s\r" % (len(str(max_lines)),
+                                                     i,
+                                                     max_lines,
+                                                     100 * i / max_lines,
+                                                     password
+                                                     )
+            sys.stdout.write(output)
+            sys.stdout.flush()
 
 if __name__ == '__main__':
-
-	main()
+    args = _cli_opts()
+    try:
+        main(args)
+    except KeyboardInterrupt:
+        print "\nExit..."
+        sys.exit(1)
